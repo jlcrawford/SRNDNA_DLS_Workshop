@@ -15,4 +15,6 @@ Pre-registration templates: Kirtley et al., 2021 (https://doi.org/10.1177/251524
 EMA data descriptives + plotting: Siepe et al., 2025 (https://doi.org/10.1177/25152459241286877)
 
 ## Data Analysis
+Advanced intensive longitudinal data analysis tutorials (QuantDev: https://quantdev.ssri.psu.edu/tutorials)
+
 Bayesian MLM tutorial: Dora et al., 2024 (https://doi.org/10.1177/25152459241235875)
