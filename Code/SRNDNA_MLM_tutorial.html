@@ -386,7 +386,7 @@ d.EMA &lt;- read_csv(data.path)</code></pre>
 <p>We will use the unconditional model to calculate intra-class
 correlation (ICC). The ICC is the ratio of the between-person variance
 to the total variance (between + within).</p>
-<pre class="r"><code>#unconditional model with positive affect as the predictor
+<pre class="r"><code>#unconditional model of positive affect
 m.pos.affect.null&lt;- lmer(data = d.EMA, pos.affect ~ 1 + (1|subID))
 summary(m.pos.affect.null)</code></pre>
 <pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]

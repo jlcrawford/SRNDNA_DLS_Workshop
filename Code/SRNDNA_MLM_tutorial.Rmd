@@ -26,7 +26,7 @@ d.EMA <- read_csv(data.path)
 We will use the unconditional model to calculate intra-class correlation (ICC). The ICC is the ratio of the between-person  variance to the total variance (between + within). 
 
 ```{r affect_unconditional, warning=FALSE, message=FALSE}
-#unconditional model with positive affect as the predictor
+#unconditional model of positive affect
 m.pos.affect.null<- lmer(data = d.EMA, pos.affect ~ 1 + (1|subID))
 summary(m.pos.affect.null)
 #extract the ICC
