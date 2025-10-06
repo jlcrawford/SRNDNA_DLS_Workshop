@@ -1,0 +1,154 @@
+---
+title: "Learning to Run Multilvel Models in R Using Intensive Longitudinal Data"
+subtitle: "SRNDNA Daily Life Sampling Workshop"
+author: "J. L. Crawford"
+date: "October 6, 2025"
+output: "html_document"
+---
+
+# Multilevel Modeling of Daily Life Data
+The data in this tutorial are taken from an EMA protocol that asked participants to first rate their current positive and negative affect across a variety of affect terms (1 = not at all; 5 = extremely). Next, participants were asked to designate which activities they had completed during the past three hours. For each endorsed activity, they were asked to rate the mental demand of the activity ( 1= lowest; 5 = highest). The data frame contains cleaned data with each participant's mean levels of positive affect, negative affect, and mental demand at each time point.
+
+```{r setup, warning=FALSE, message=FALSE}
+#this code chunk clears out the R environment; it's best to start each of your scripts with this command
+rm(list=ls())
+#Import relevant packages
+library(easystats); library(lme4); library(sjPlot); library(tidyverse)
+
+# Import data 
+data.path <-"https://raw.githubusercontent.com/jlcrawford/SRNDNA_DLS_Workshop/refs/heads/main/Code/SRNDNA_EMA_data_MLM.csv"
+# creating data frame of cleaned EMA data
+d.EMA <- read_csv(data.path)
+```
+
+## Multilevel models summarizing daily life affect
+### Unconditional model
+We will use the unconditional model to calculate intra-class correlation (ICC). The ICC is the ratio of the between-person  variance to the total variance (between + within). 
+
+```{r affect_unconditional, warning=FALSE, message=FALSE}
+#unconditional model with positive affect as the predictor
+m.pos.affect.null<- lmer(data = d.EMA, pos.affect ~ 1 + (1|subID))
+summary(m.pos.affect.null)
+#extract the ICC
+icc(m.pos.affect.null)
+```
+
+### Mental demand predicting daily life affect (random intercept only)
+Now, we're adding a time varying (Level 1) predictor to our model. Specifically, this model tests if daily life mental demand is associated with concurrent levels of positive affect.
+
+```{r affect_mDemand_int, warning=FALSE, message=FALSE}
+#mental demand from the previous three hours predicting positive affect
+m.pos.affect.demand<- lmer(data = d.EMA, pos.affect ~ mean.demand + (1|subID))
+summary(m.pos.affect.demand)
+
+tab_model(m.pos.affect.demand, digits = 2, show.stat = T, pred.labels = c("Intercept","Mental Demand"), dv.labels = c("Positive Affect"), show.r2 = F)
+```
+
+### Plotting the model outputs (random intercept only)
+
+```{r affect_mDemand_int_plot, warning=FALSE, message=FALSE}
+##positive affect
+#setting up data frame to plot the results from the multilevel model
+data.pa.dem.plot <- get_datagrid(m.pos.affect.demand, by = c("mean.demand","subID"), preserve_range = TRUE)
+#random effects
+r.pred.m.pos.affect.demand <- estimate_relation(m.pos.affect.demand, include_random = T, data = data.pa.dem.plot)
+#fixed effects
+f.pred.m.pos.affect.demand <- estimate_relation(m.pos.affect.demand, by = "mean.demand")
+#plot
+fig.pos.demand.int.tmp <- ggplot(f.pred.m.pos.affect.demand, aes(x=mean.demand, y=Predicted)) + 
+  geom_ribbon(data = f.pred.m.pos.affect.demand, aes(x = mean.demand, ymin = CI_low, ymax = CI_high), alpha = 0.5) + 
+  geom_line(data = f.pred.m.pos.affect.demand, aes(x = mean.demand, y = Predicted), linewidth = 2) +
+  geom_line(data = r.pred.m.pos.affect.demand, aes(x=mean.demand, y=Predicted, group=subID, colour = factor(subID)),
+            alpha = 0.5) + theme_classic() + labs(x= "Mental Demand", y="Positive Affect")
+fig.pos.demand.int <- fig.pos.demand.int.tmp + guides(colour=F) #this eliminates the figure legend with Subject IDs from appearing
+fig.pos.demand.int
+```
+
+### Mental demand predicting daily life affect (random intercept + slope)
+In the previous model, we entered mental demand as a fixed effect only. Here, we allow individual slopes between the association of mental demand and affect to vary randomly. Notice the difference in the plots describing the two sets of models.
+
+```{r affect_mDemand_int_slope, warning=FALSE, message=FALSE}
+#mental demand from the previous three hours predicting positive affect
+m.pos.affect.demand.slope<- lmer(data = d.EMA, pos.affect ~ mean.demand + (mean.demand|subID))
+summary(m.pos.affect.demand.slope)
+
+tab_model(m.pos.affect.demand.slope, digits = 2, show.stat = T, pred.labels = c("Intercept","Mental Demand"), dv.labels = c("Positive Affect"), show.r2 = F)
+```
+
+### Plotting the model outputs (random intercept + slope)
+
+```{r affect_mDemand_int_slope_plot, warning=FALSE, message=FALSE}
+##positive affect
+#setting up data frame to plot the results from the multilevel model
+data.pa.dem.slope.plot <- get_datagrid(m.pos.affect.demand.slope, by = c("mean.demand","subID"), preserve_range = TRUE)
+#random effects
+r.pred.m.pos.affect.demand.slope <- estimate_relation(m.pos.affect.demand.slope, include_random = T, data = data.pa.dem.plot)
+#fixed effects
+f.pred.m.pos.affect.demand.slope <- estimate_relation(m.pos.affect.demand.slope, by = "mean.demand")
+#plot
+fig.pos.demand.slope.tmp <- ggplot(f.pred.m.pos.affect.demand.slope, aes(x=mean.demand, y=Predicted)) + 
+  geom_ribbon(data = f.pred.m.pos.affect.demand.slope, aes(x = mean.demand, ymin = CI_low, ymax = CI_high), alpha = 0.5) + 
+  geom_line(data = f.pred.m.pos.affect.demand.slope, aes(x = mean.demand, y = Predicted), linewidth = 2) +
+  geom_line(data = r.pred.m.pos.affect.demand.slope, aes(x=mean.demand, y=Predicted, group=subID, colour = factor(subID)),
+            alpha = 0.5) + theme_classic() + labs(x= "Mental Demand", y="Positive Affect")
+fig.pos.demand.slope <- fig.pos.demand.slope.tmp + guides(colour=F) 
+fig.pos.demand.slope
+```
+
+### Mental demand and age group predicting daily life affect (random intercept + slope)
+In this set of models we will add a level-two predictor, age group. Note: the age group variable is dummy-coded (Young Adutls = 0; Older Adults = 1). Pay close attention to the model outputs! 
+
+```{r affect_mDemand_age, warning=FALSE, message=FALSE}
+#age group is added only as a fixed effect
+m.pos.affect.demand.age <- lmer(data = d.EMA, pos.affect ~ mean.demand + ageCode + (mean.demand |subID))
+summary(m.pos.affect.demand.age)
+
+#age group is added as both a fixed + random effect
+m.pos.affect.demand.age.rand <- lmer(data = d.EMA, pos.affect ~ mean.demand + ageCode + (mean.demand + ageCode |subID))
+summary(m.pos.affect.demand.age.rand)
+```
+
+#### The second model failed to converge. If you have convergence issues it is likely because you have: a) too few data points, b) too much imbalance in your repeated measures (i.e., missing data), c) too many parameters to estimate, or d) a combination of all of the above. When you observe that your model failed to converge, you may be asking too much of the data. Instead, we will have to remove some of the random terms to reduce model complexity (or adopt Bayesian approaches!).
+
+## Within-person centering
+An advantage to densely sampling participants throughout daily life is that it gives us the opportunity to parse both within- and between-person effects. To run these analyses we first have to person-center variables in our data frame.
+
+```{r personcentering, warning=FALSE, message=FALSE}
+#creating a data frame with person-means of daily life mental demand
+d.m.demand.sub <- d.EMA %>% select(subID, mean.demand) %>% group_by(subID) %>%
+  summarise(mean.demand.avg = mean(mean.demand, na.rm = T))
+
+#merging the person-mean data frame with the EMA data frame
+d.EMA.merged <- d.EMA %>% inner_join(d.m.demand.sub, by = "subID") %>%
+  mutate(mean.demand.pc = mean.demand - mean.demand.avg) #creating a person-centered variable
+```
+
+### Here, we test for the combined within- and between-person effects of mental demand on daily life affect. These models allow us to investigate the extent to which greater levels of mental demand, relative to their baseline over the sampling period, are associated with affect.
+
+```{r affect_mDemand_pc, warning=FALSE, message=FALSE}
+#both within- and between-person effects of mental demand entered into the model
+m.pos.affect.demand.pc <- lmer(data = d.EMA.merged, pos.affect ~ mean.demand.pc + mean.demand.avg + (mean.demand.pc |subID))
+summary(m.pos.affect.demand.pc)
+
+tab_model(m.pos.affect.demand.pc, digits = 2, show.stat = T, pred.labels = c("Intercept","Person-Centered Mental Demand", "Average Mental Demand"), dv.labels = c("Positive Affect"), show.r2 = F)
+```
+
+### Extension: adding an interaction term with age group
+Can you try to interpret the effects?
+
+```{r affect_mDemand_age_pc, warning=FALSE, message=FALSE}
+#both within- and between-person effects of mental demand entered into the model
+m.pos.affect.demand.pc.age <- lmer(data = d.EMA.merged, pos.affect ~ mean.demand.pc*ageCode + mean.demand.avg + (mean.demand.pc |subID))
+summary(m.pos.affect.demand.pc.age)
+```
+
+## Applied Exercises
+Up until this point in the tutorial we've examined the associations between daily life mental demand and positive affect. Take some time to try to uncover the associations between daily life mental demand and negative affect.
+
+1) What is the ICC of the null model of negative affect? What does this value tell you?
+
+2) Set up a model with both within- and between-person predictors of mental demand on negative affect. Organize the model outputs using tab_model and try plotting the fixed and random effects for each model term.
+
+3) What happens when age group is added to the model?
+
+4) Create a binary variable that indicates whether a participant has engaged in a demanding activity (mental demand > 3). Next, test for the associations between person- and between-person centered negative affect and this binary outcome using a generalized model. Try plotting the association. What do you notice about the output and plot(s)?
