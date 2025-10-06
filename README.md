@@ -14,6 +14,8 @@ Pre-registration templates: Kirtley et al., 2021 (https://doi.org/10.1177/251524
 ## Data Cleaning and Descriptive Analysis
 EMA data descriptives + plotting: Siepe et al., 2025 (https://doi.org/10.1177/25152459241286877)
 
+EMA pre-processing tutorial: Revol et al., 2024 (https://doi.org/10.1177/25152459241256609)
+
 ## Data Analysis
 Advanced intensive longitudinal data analysis tutorials (QuantDev: https://quantdev.ssri.psu.edu/tutorials)
 
